@@ -44,6 +44,18 @@
   .dashboard-card { @apply rounded-xl border border-slate-200/80 bg-white shadow-[0_2px_8px_rgba(15,40,32,0.04)]; }
   .section-title { @apply text-[17px] font-semibold tracking-tight text-slate-900; }
   .filter-button { @apply inline-flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-800 outline-none transition hover:border-emerald-300 hover:bg-emerald-50 focus:ring-4 focus:ring-emerald-100; }
+  .auth-shell { @apply flex min-h-screen items-center justify-center bg-[#03251d] px-5 py-10; }
+  .auth-card { @apply w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl; }
+  .auth-mark { @apply mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-700 text-2xl font-bold text-white; }
+  .eyebrow { @apply mt-4 text-xs font-bold tracking-[0.25em] text-emerald-700; }
+  .auth-card h1 { @apply mt-3 text-2xl font-semibold tracking-tight text-slate-900; }
+  .auth-copy { @apply mt-2 text-sm text-slate-500; }
+  .auth-card form { @apply mt-7 grid gap-3 text-left; }
+  .auth-card input { @apply h-12 rounded-xl border border-slate-200 px-4 text-sm text-slate-900 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100; }
+  .auth-card form button { @apply mt-2 h-12 rounded-xl bg-emerald-700 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-60; }
+  .form-error { @apply text-xs text-red-600; }
+  .auth-switch { @apply mt-6 text-sm text-slate-500; }
+  .auth-switch a { @apply font-semibold text-emerald-700 hover:underline; }
 }
 
 ::-webkit-scrollbar { width: 8px; }
