@@ -5,6 +5,6 @@ import QormaDashboard from '@/components/qorma-dashboard'
 
 export default async function Page() {
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/sign-in')
+  if (!session?.user) redirect('/landing')
   return <QormaDashboard user={session.user} />
 }
