@@ -17,7 +17,10 @@ node_modules
 # Drizzle migrations (generated — commit if you want migration history)
 # lib/db/migrations/
 
-# PDF source files — keep out of git
+# Source exam files — keep out of git
 *.pdf
+*.docx
+*.doc
+euee/
 lib/db/seed/data/*.ts
 !lib/db/seed/data/.gitkeep
