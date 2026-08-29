@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
-import { practiceSession, sessionAnswer, question, subject, exam, option } from '@/lib/db/schema'
-import { eq, and, desc, sql, count, inArray } from 'drizzle-orm'
+import { practiceSession, sessionAnswer, question, subject, exam, option, topic } from '@/lib/db/schema'
+import { eq, and, desc, gte, sql, count, inArray } from 'drizzle-orm'
 
 /** Dashboard stats for a user */
 export async function getUserStats(userId: string) {
@@ -159,4 +159,116 @@ export async function getSessionResults(sessionId: number, userId: string) {
   }))
 
   return { session: sess, answers: enriched }
+}
+
+/** Accuracy over time — daily accuracy buckets for the given number of days */
+export async function getAccuracyOverTime(
+  userId: string,
+  days: 7 | 30 | 90 = 30
+): Promise<Array<{ date: string; accuracy: number; total: number }>> {
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  since.setUTCHours(0, 0, 0, 0)
+
+  const rows = await db
+    .select({
+      date: sql<string>`date_trunc('day', ${sessionAnswer.answeredAt})::date::text`,
+      total: count(sessionAnswer.id),
+      correct: sql<number>`sum(case when ${sessionAnswer.isCorrect} then 1 else 0 end)::int`,
+    })
+    .from(sessionAnswer)
+    .innerJoin(practiceSession, eq(sessionAnswer.sessionId, practiceSession.id))
+    .where(
+      and(
+        eq(practiceSession.userId, userId),
+        gte(sessionAnswer.answeredAt, since)
+      )
+    )
+    .groupBy(sql`date_trunc('day', ${sessionAnswer.answeredAt})::date`)
+    .orderBy(sql`date_trunc('day', ${sessionAnswer.answeredAt})::date`)
+
+  return rows.map((r) => ({
+    date: r.date,
+    total: Number(r.total),
+    accuracy: Number(r.total) > 0
+      ? Math.round((Number(r.correct ?? 0) / Number(r.total)) * 100)
+      : 0,
+  }))
+}
+
+/** Per-topic stats for weak area detection */
+export async function getUserTopicStats(userId: string) {
+  const rows = await db
+    .select({
+      topicId: question.topicId,
+      topicName: topic.name,
+      subjectName: subject.name,
+      total: count(sessionAnswer.id),
+      correct: sql<number>`sum(case when ${sessionAnswer.isCorrect} then 1 else 0 end)::int`,
+    })
+    .from(sessionAnswer)
+    .innerJoin(practiceSession, eq(sessionAnswer.sessionId, practiceSession.id))
+    .innerJoin(question, eq(sessionAnswer.questionId, question.id))
+    .innerJoin(subject, eq(question.subjectId, subject.id))
+    .leftJoin(topic, eq(question.topicId, topic.id))
+    .where(eq(practiceSession.userId, userId))
+    .groupBy(question.topicId, topic.name, subject.name)
+
+  return rows
+    .filter((r) => r.topicId !== null && r.topicName !== null && Number(r.total) >= 3)
+    .map((r) => ({
+      topicId: r.topicId!,
+      topicName: r.topicName!,
+      subjectName: r.subjectName,
+      total: Number(r.total),
+      correct: Number(r.correct ?? 0),
+      accuracy: Math.round((Number(r.correct ?? 0) / Number(r.total)) * 100),
+    }))
+    .sort((a, b) => a.accuracy - b.accuracy)
+}
+
+/** All subject stats including subjects with zero attempts (for "not started" display) */
+export async function getAllSubjectPerformance(userId: string) {
+  // Get subjects that have data loaded in the DB
+  const allSubjects = await db
+    .selectDistinct({
+      id: subject.id,
+      name: subject.name,
+      slug: subject.slug,
+      iconName: subject.iconName,
+    })
+    .from(subject)
+    .innerJoin(question, eq(question.subjectId, subject.id))
+    .orderBy(subject.sortOrder)
+
+  // Get per-subject attempted stats
+  const attempted = await db
+    .select({
+      subjectId: practiceSession.subjectId,
+      total: count(sessionAnswer.id),
+      correct: sql<number>`sum(case when ${sessionAnswer.isCorrect} then 1 else 0 end)::int`,
+    })
+    .from(sessionAnswer)
+    .innerJoin(practiceSession, eq(sessionAnswer.sessionId, practiceSession.id))
+    .where(eq(practiceSession.userId, userId))
+    .groupBy(practiceSession.subjectId)
+
+  const attemptMap = new Map(
+    attempted.map((r) => [r.subjectId, { total: Number(r.total), correct: Number(r.correct ?? 0) }])
+  )
+
+  return allSubjects.map((s) => {
+    const data = attemptMap.get(s.id)
+    return {
+      subjectId: s.id,
+      subjectName: s.name,
+      subjectSlug: s.slug,
+      subjectIcon: s.iconName,
+      total: data?.total ?? 0,
+      correct: data?.correct ?? 0,
+      accuracy: data && data.total > 0
+        ? Math.round((data.correct / data.total) * 100)
+        : null, // null = not started
+    }
+  })
 }

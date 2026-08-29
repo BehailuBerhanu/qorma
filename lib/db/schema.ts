@@ -5,6 +5,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   varchar,
 } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
@@ -203,7 +204,9 @@ export const bookmark = pgTable('bookmark', {
     .notNull()
     .references(() => question.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-})
+}, (t) => [
+  unique('bookmark_user_id_question_id_unique').on(t.userId, t.questionId),
+])
 
 // ---------------------------------------------------------------------------
 // Relations — for Drizzle relational query API

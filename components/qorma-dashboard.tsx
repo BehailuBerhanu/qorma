@@ -74,6 +74,7 @@ interface Props {
   recentActivity: ActivityItem[]
   streak: number
   allSubjects: SubjectRow[]
+  chartData: Array<{ date: string; accuracy: number; total: number }>
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -93,8 +94,8 @@ const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
   { label: 'Practice', icon: PenLine, href: '/exams' },
   { label: 'Past Exams', icon: BookOpen, href: '/exams' },
-  { label: 'Bookmarks', icon: Bookmark, href: '#' },
-  { label: 'Performance', icon: LineChart, href: '#' },
+  { label: 'Bookmarks', icon: Bookmark, href: '/bookmarks' },
+  { label: 'Performance', icon: LineChart, href: '/performance' },
   { label: 'Challenges', icon: Trophy, href: '#' },
   { label: 'Study Groups', icon: Users, href: '#' },
   { label: 'Downloads', icon: Download, href: '#' },
@@ -223,17 +224,38 @@ function StatCard({
   )
 }
 
-function PerformanceChart() {
-  // Static chart shape preserved — will be made dynamic in Phase 1D
-  const values = [50, 53, 46, 52, 51, 57, 68, 67, 58, 83, 75, 68, 63, 75, 79, 87]
-  const points = values.map((value, i) => `${i * 18},${100 - value}`).join(' ')
+function PerformanceChart({ data }: { data: Array<{ date: string; accuracy: number; total: number }> }) {
+  // Fall back to a flat line when there's no real data yet
+  const hasData = data.length > 0
+
+  const W = 270
+  const H = 100
+  const pad = 4
+
+  const points = hasData
+    ? data
+        .map((d, i) => {
+          const x = pad + (i / Math.max(data.length - 1, 1)) * (W - pad * 2)
+          const y = H - pad - (d.accuracy / 100) * (H - pad * 2)
+          return `${x},${y}`
+        })
+        .join(' ')
+    : `${pad},${H / 2} ${W - pad},${H / 2}` // flat line placeholder
+
+  const dots = hasData
+    ? data.map((d, i) => ({
+        cx: pad + (i / Math.max(data.length - 1, 1)) * (W - pad * 2),
+        cy: H - pad - (d.accuracy / 100) * (H - pad * 2),
+      }))
+    : []
+
   return (
     <div className="dashboard-card p-5">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="section-title">Performance Overview</h2>
-        <button className="filter-button">
-          This Month <ChevronDown size={14} />
-        </button>
+        <Link href="/performance" className="filter-button">
+          View Details
+        </Link>
       </div>
       <div className="relative h-[160px] pl-8">
         <div className="absolute inset-x-8 top-1 bottom-5 flex flex-col justify-between text-[10px] text-slate-400">
@@ -252,22 +274,23 @@ function PerformanceChart() {
           }}
         >
           <svg
-            viewBox="0 0 270 100"
+            viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="none"
             className="h-full w-full overflow-visible"
           >
             <polyline
               points={points}
               fill="none"
-              stroke="#0b9252"
+              stroke={hasData ? '#0b9252' : '#cbd5e1'}
               strokeWidth="2"
               vectorEffect="non-scaling-stroke"
+              strokeDasharray={hasData ? undefined : '4 3'}
             />
-            {values.map((value, i) => (
+            {dots.map((pt, i) => (
               <circle
                 key={i}
-                cx={i * 18}
-                cy={100 - value}
+                cx={pt.cx}
+                cy={pt.cy}
                 r="2.5"
                 fill="#0b9252"
                 vectorEffect="non-scaling-stroke"
@@ -275,13 +298,34 @@ function PerformanceChart() {
             ))}
           </svg>
         </div>
-        <div className="absolute inset-x-8 bottom-0 flex justify-between text-[10px] text-slate-500">
-          <span>May 1</span>
-          <span>May 8</span>
-          <span>May 15</span>
-          <span>May 22</span>
-          <span>May 29</span>
-        </div>
+        {hasData ? (
+          <div className="absolute inset-x-8 bottom-0 flex justify-between text-[10px] text-slate-500">
+            <span>
+              {new Date(data[0].date + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+            {data.length > 2 && (
+              <span>
+                {new Date(data[Math.floor(data.length / 2)].date + 'T00:00:00').toLocaleDateString(
+                  'en-US',
+                  { month: 'short', day: 'numeric' }
+                )}
+              </span>
+            )}
+            <span>
+              {new Date(data[data.length - 1].date + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+          </div>
+        ) : (
+          <div className="absolute inset-x-8 bottom-0 text-center text-[10px] text-slate-400">
+            Practice questions to see your progress
+          </div>
+        )}
       </div>
     </div>
   )
@@ -296,6 +340,7 @@ export default function QormaDashboard({
   recentActivity,
   streak,
   allSubjects,
+  chartData,
 }: Props) {
   const router = useRouter()
   const [active, setActive] = useState('Dashboard')
@@ -650,7 +695,7 @@ export default function QormaDashboard({
                 </div>
               </div>
 
-              <PerformanceChart />
+              <PerformanceChart data={chartData} />
 
               {/* Leaderboard */}
               <div className="dashboard-card overflow-hidden">

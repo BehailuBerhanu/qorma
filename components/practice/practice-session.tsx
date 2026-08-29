@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { CheckCircle2, XCircle, ChevronRight, BookOpen, ArrowLeft, X } from 'lucide-react'
 import { submitAnswer, completePracticeSession } from '@/lib/actions/practice'
 import type { SubmitAnswerResult } from '@/lib/actions/practice'
+import BookmarkButton from '@/components/practice/bookmark-button'
 
 type Option = {
   id: number
@@ -29,6 +30,7 @@ interface Props {
   examLabel: string
   subjectName: string
   questions: Question[]
+  initialBookmarkedIds?: number[]
 }
 
 type AnswerState = SubmitAnswerResult & { selectedOptionId: number }
@@ -38,6 +40,7 @@ export default function PracticeSession({
   examLabel,
   subjectName,
   questions,
+  initialBookmarkedIds = [],
 }: Props) {
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -47,6 +50,8 @@ export default function PracticeSession({
   const [isCompleting, startCompleting] = useTransition()
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const startTimeRef = useRef<number>(Date.now())
+
+  const bookmarkedSet = new Set(initialBookmarkedIds)
 
   const currentQuestion = questions[currentIndex]
   const isLast = currentIndex === questions.length - 1
@@ -101,8 +106,6 @@ export default function PracticeSession({
       {/* ── Top header ── */}
       <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-5 py-3 lg:px-8">
-
-          {/* Back / exit button */}
           <button
             onClick={() => setShowExitConfirm(true)}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
@@ -110,13 +113,10 @@ export default function PracticeSession({
           >
             <X size={18} />
           </button>
-
-          {/* Context label */}
           <div className="min-w-0 flex-1">
             <div className="truncate text-xs font-medium text-slate-500">
               {examLabel} · {subjectName}
             </div>
-            {/* Progress bar */}
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
               <div
                 className="h-full rounded-full bg-emerald-600 transition-all duration-300"
@@ -124,8 +124,6 @@ export default function PracticeSession({
               />
             </div>
           </div>
-
-          {/* Question counter */}
           <span className="shrink-0 text-xs font-semibold text-slate-600">
             {currentIndex + 1}<span className="font-normal text-slate-400">/{questions.length}</span>
           </span>
@@ -163,10 +161,15 @@ export default function PracticeSession({
 
         {/* Question card */}
         <div className="dashboard-card mb-6 p-6">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-4 flex items-center justify-between gap-2">
             <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
               Q{currentQuestion.orderIndex}
             </span>
+            {/* Subtle bookmark toggle — does not compete with the question */}
+            <BookmarkButton
+              questionId={currentQuestion.id}
+              initialBookmarked={bookmarkedSet.has(currentQuestion.id)}
+            />
           </div>
           <p className="text-[17px] font-medium leading-relaxed text-slate-900">
             {currentQuestion.body}
@@ -239,7 +242,6 @@ export default function PracticeSession({
 
         {/* Action row */}
         <div className="flex items-center justify-between">
-          {/* Skip back on mobile (previously answered) */}
           {currentIndex > 0 && !answerState ? (
             <button
               onClick={() => setCurrentIndex((i) => i - 1)}

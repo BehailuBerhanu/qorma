@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { practiceSession, exam, subject } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getQuestionsForSession } from '@/lib/db/queries/questions'
+import { getBookmarkStatusForQuestions } from '@/lib/db/queries/bookmarks'
 import PracticeSession from '@/components/practice/practice-session'
 
 export default async function PracticeSessionPage({
@@ -48,6 +49,10 @@ export default async function PracticeSessionPage({
     redirect(`/exams/${sess.examId}`)
   }
 
+  // Load initial bookmark status for all questions in the session
+  const questionIds = questions.map((q) => q.id)
+  const bookmarkedSet = await getBookmarkStatusForQuestions(session.user.id, questionIds)
+
   return (
     <PracticeSession
       sessionId={id}
@@ -56,6 +61,7 @@ export default async function PracticeSessionPage({
       examLabel={examRow?.label ?? 'EUEE'}
       subjectName={subjectRow?.name ?? 'Practice'}
       questions={questions}
+      initialBookmarkedIds={Array.from(bookmarkedSet)}
     />
   )
 }
