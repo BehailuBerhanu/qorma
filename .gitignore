@@ -13,3 +13,11 @@ __v0_jsx-dev-runtime.ts
 node_modules
 .next/
 .DS_Store
+
+# Drizzle migrations (generated — commit if you want migration history)
+# lib/db/migrations/
+
+# PDF source files — keep out of git
+*.pdf
+lib/db/seed/data/*.ts
+!lib/db/seed/data/.gitkeep
