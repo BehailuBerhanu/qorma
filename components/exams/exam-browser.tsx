@@ -1,9 +1,10 @@
 'use client'
 
-import { useRouter, usePathname } from 'next/navigation'
-import { BookOpen, ChevronRight, Search } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { BookOpen, ChevronRight, Loader2 } from 'lucide-react'
+import { useState, useMemo, useTransition } from 'react'
 import Link from 'next/link'
+import { createPracticeSession } from '@/lib/actions/practice'
 import type { subject, exam } from '@/lib/db/schema'
 import type { InferSelectModel } from 'drizzle-orm'
 
@@ -14,6 +15,7 @@ interface Props {
   exams: Exam[]
   subjects: Subject[]
   activeSubjectSlug: string | null
+  activeSubject: Subject | null
 }
 
 const SUBJECT_ICONS: Record<string, string> = {
@@ -24,9 +26,11 @@ const SUBJECT_ICONS: Record<string, string> = {
   english: 'Aa',
 }
 
-export default function ExamBrowser({ exams, subjects, activeSubjectSlug }: Props) {
+export default function ExamBrowser({ exams, subjects, activeSubjectSlug, activeSubject }: Props) {
   const router = useRouter()
   const [query, setQuery] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const [startingExamId, setStartingExamId] = useState<number | null>(null)
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim()
@@ -39,6 +43,18 @@ export default function ExamBrowser({ exams, subjects, activeSubjectSlug }: Prop
     router.push(`/exams${params}`)
   }
 
+  // When a subject is active, clicking an exam card starts a practice session directly
+  function handleExamClick(examId: number) {
+    if (!activeSubject) return
+    setStartingExamId(examId)
+    startTransition(async () => {
+      const { sessionId } = await createPracticeSession(examId, activeSubject.id)
+      router.push(`/practice/${sessionId}`)
+    })
+  }
+
+  const isSubjectFiltered = !!activeSubject
+
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 lg:px-8">
       {/* Page header */}
@@ -47,17 +63,29 @@ export default function ExamBrowser({ exams, subjects, activeSubjectSlug }: Prop
           <Link href="/" className="hover:text-emerald-700">Dashboard</Link>
           <span className="mx-2 text-slate-300">/</span>
           <span>Past Exams</span>
+          {activeSubject && (
+            <>
+              <span className="mx-2 text-slate-300">/</span>
+              <span>{activeSubject.name}</span>
+            </>
+          )}
         </p>
-        <h1 className="text-[26px] font-semibold tracking-tight">Past Exams</h1>
+        <h1 className="text-[26px] font-semibold tracking-tight">
+          {activeSubject ? `${activeSubject.name} — Past Exams` : 'Past Exams'}
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
-          Browse EUEE past examination papers by year and subject.
+          {activeSubject
+            ? `Select a year to start practicing ${activeSubject.name}.`
+            : 'Browse EUEE past examination papers by year and subject.'}
         </p>
       </div>
 
       {/* Search */}
-      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-        <label className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-2.5 text-slate-400" />
+      <div className="mb-5">
+        <label className="relative block max-w-sm">
+          <svg className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -101,34 +129,71 @@ export default function ExamBrowser({ exams, subjects, activeSubjectSlug }: Prop
           <BookOpen size={36} className="mx-auto mb-3 text-slate-300" />
           <p className="font-medium text-slate-500">No exams found</p>
           <p className="mt-1 text-sm text-slate-400">
-            {query ? 'Try a different search term.' : 'Check back once exam data has been loaded.'}
+            {query ? 'Try a different search term.' : 'No data loaded for this subject yet.'}
           </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((e) => (
-            <Link
-              key={e.id}
-              href={`/exams/${e.id}`}
-              className="dashboard-card group flex items-center justify-between p-5 transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-lg font-bold text-emerald-700">
+          {filtered.map((e) => {
+            const isStarting = isPending && startingExamId === e.id
+
+            if (isSubjectFiltered) {
+              // Subject is selected — clicking starts practice directly
+              return (
+                <button
+                  key={e.id}
+                  onClick={() => handleExamClick(e.id)}
+                  disabled={isPending}
+                  className="dashboard-card group flex items-center justify-between p-5 text-left transition hover:-translate-y-0.5 hover:shadow-md disabled:opacity-60"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-lg font-bold text-emerald-700">
+                      {e.year.toString().slice(2)}
+                    </span>
+                    <div>
+                      <div className="font-semibold text-slate-900">{e.label}</div>
+                      <div className="text-xs text-emerald-700 font-medium">
+                        {activeSubject!.name}
+                      </div>
+                    </div>
+                  </div>
+                  {isStarting ? (
+                    <Loader2 size={18} className="shrink-0 animate-spin text-emerald-600" />
+                  ) : (
+                    <ChevronRight
+                      size={18}
+                      className="shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
+                    />
+                  )}
+                </button>
+              )
+            }
+
+            // No subject selected — go to exam detail to pick a subject
+            return (
+              <Link
+                key={e.id}
+                href={`/exams/${e.id}`}
+                className="dashboard-card group flex items-center justify-between p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-lg font-bold text-emerald-700">
                     {e.year.toString().slice(2)}
                   </span>
                   <div>
                     <div className="font-semibold text-slate-900">{e.label}</div>
-                    <div className="text-xs text-slate-500 capitalize">{e.examType.replace(/_/g, ' ')}</div>
+                    <div className="text-xs text-slate-500 capitalize">
+                      {e.examType.toUpperCase().replace('_', ' ')}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <ChevronRight
-                size={18}
-                className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
-              />
-            </Link>
-          ))}
+                <ChevronRight
+                  size={18}
+                  className="shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"
+                />
+              </Link>
+            )
+          })}
         </div>
       )}
     </div>
