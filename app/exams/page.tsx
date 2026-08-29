@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { getExams, getSubjects, getSubjectBySlug } from '@/lib/db/queries/exams'
+import { getExams, getSubjectsWithData, getSubjectBySlug } from '@/lib/db/queries/exams'
 import ExamBrowser from '@/components/exams/exam-browser'
 
 export const metadata = { title: 'Past Exams — Qorma' }
@@ -18,7 +18,7 @@ export default async function ExamsPage({
 
   const [exams, subjects, activeSubject] = await Promise.all([
     getExams(subject),
-    getSubjects(),
+    getSubjectsWithData(),
     subject ? getSubjectBySlug(subject) : Promise.resolve(null),
   ])
 

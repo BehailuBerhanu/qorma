@@ -328,7 +328,7 @@ export default function QormaDashboard({
           done: `${s.correct} / ${s.total}`,
         }))
     }
-    // No activity yet — show all subjects with 0%
+    // No activity yet — show subjects that have data with 0%
     return allSubjects
       .filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
       .map((s) => ({
@@ -337,7 +337,7 @@ export default function QormaDashboard({
         slug: s.slug,
         iconName: s.iconName,
         score: 0,
-        done: '0 / 0',
+        done: 'Not started',
       }))
   }, [subjectStats, allSubjects, query])
 

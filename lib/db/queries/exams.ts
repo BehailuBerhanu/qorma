@@ -37,6 +37,22 @@ export async function getSubjects() {
   return db.select().from(subject).orderBy(subject.sortOrder)
 }
 
+/** Subjects that have at least one question loaded in the DB */
+export async function getSubjectsWithData() {
+  const rows = await db
+    .selectDistinct({
+      id: subject.id,
+      slug: subject.slug,
+      name: subject.name,
+      iconName: subject.iconName,
+      sortOrder: subject.sortOrder,
+    })
+    .from(subject)
+    .innerJoin(question, eq(question.subjectId, subject.id))
+    .orderBy(subject.sortOrder)
+  return rows
+}
+
 /** Single subject by slug */
 export async function getSubjectBySlug(slug: string) {
   const rows = await db

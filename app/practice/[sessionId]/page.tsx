@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import { db } from '@/lib/db'
-import { practiceSession } from '@/lib/db/schema'
+import { practiceSession, exam, subject } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { getQuestionsForSession } from '@/lib/db/queries/questions'
 import PracticeSession from '@/components/practice/practice-session'
@@ -33,12 +33,16 @@ export default async function PracticeSessionPage({
 
   if (!sess) notFound()
 
-  // If already completed, redirect to results
   if (sess.completedAt) {
     redirect(`/practice/${id}/results`)
   }
 
-  const questions = await getQuestionsForSession(sess.examId, sess.subjectId)
+  // Fetch exam and subject labels for the header
+  const [[examRow], [subjectRow], questions] = await Promise.all([
+    db.select({ label: exam.label }).from(exam).where(eq(exam.id, sess.examId)).limit(1),
+    db.select({ name: subject.name }).from(subject).where(eq(subject.id, sess.subjectId)).limit(1),
+    getQuestionsForSession(sess.examId, sess.subjectId),
+  ])
 
   if (questions.length === 0) {
     redirect(`/exams/${sess.examId}`)
@@ -49,6 +53,8 @@ export default async function PracticeSessionPage({
       sessionId={id}
       examId={sess.examId}
       subjectId={sess.subjectId}
+      examLabel={examRow?.label ?? 'EUEE'}
+      subjectName={subjectRow?.name ?? 'Practice'}
       questions={questions}
     />
   )

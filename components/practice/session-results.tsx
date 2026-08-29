@@ -24,6 +24,8 @@ interface Props {
     session: Session
     answers: Answer[]
   }
+  examLabel: string
+  subjectName: string
 }
 
 function formatTime(ms: number | null): string {
@@ -114,7 +116,7 @@ function AnswerRow({ answer }: { answer: Answer }) {
   )
 }
 
-export default function SessionResults({ results }: Props) {
+export default function SessionResults({ results, examLabel, subjectName }: Props) {
   const { session, answers } = results
   const correct = answers.filter((a) => a.isCorrect).length
   const total = answers.length
@@ -129,6 +131,9 @@ export default function SessionResults({ results }: Props) {
       <div className="mb-7 rounded-2xl bg-[#03251d] px-7 py-8 text-white text-center">
         <p className="mb-1 text-xs font-bold tracking-[0.2em] text-emerald-300 uppercase">
           Practice Complete
+        </p>
+        <p className="mb-1 text-sm text-emerald-100/70">
+          {examLabel} · {subjectName}
         </p>
         <h1 className="mb-6 text-2xl font-semibold">{statusLabel}</h1>
         <ScoreCircle score={correct} total={total} />

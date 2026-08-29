@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import QormaDashboard from '@/components/qorma-dashboard'
 import { getUserStats, getUserSubjectStats, getRecentActivity, getUserStreak } from '@/lib/db/queries/progress'
-import { getSubjects } from '@/lib/db/queries/exams'
+import { getSubjectsWithData } from '@/lib/db/queries/exams'
 
 export default async function Page() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -15,7 +15,7 @@ export default async function Page() {
     getUserSubjectStats(session.user.id).catch(() => []),
     getRecentActivity(session.user.id, 5).catch(() => []),
     getUserStreak(session.user.id).catch(() => 0),
-    getSubjects().catch(() => []),
+    getSubjectsWithData().catch(() => []),
   ])
 
   return (
