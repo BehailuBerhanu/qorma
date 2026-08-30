@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Users, BookOpen } from 'lucide-react'
@@ -20,22 +20,17 @@ interface Props {
 
 export default function JoinGroupView({ token, group }: Props) {
   const router = useRouter()
-  const [joining, startJoin] = useTransition()
-  const resultRef = useRef<number | null>(null)
+  const [joining, setJoining] = useState(false)
 
-  function handleJoin() {
-    startJoin(async () => {
+  async function handleJoin() {
+    setJoining(true)
+    try {
       const { groupId } = await joinGroupByToken(token)
-      resultRef.current = groupId
-    })
-  }
-
-  useEffect(() => {
-    if (!joining && resultRef.current !== null) {
-      router.push(`/study-groups/${resultRef.current}`)
-      resultRef.current = null
+      router.push(`/study-groups/${groupId}`)
+    } catch {
+      setJoining(false)
     }
-  }, [joining, router])
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f8faf9] px-5">

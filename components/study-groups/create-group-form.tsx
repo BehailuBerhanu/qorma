@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Check } from 'lucide-react'
@@ -13,9 +13,8 @@ interface Props {
 
 export default function CreateGroupForm({ subjects, exams }: Props) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
-  const resultRef = useRef<number | null>(null)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -30,34 +29,26 @@ export default function CreateGroupForm({ subjects, exams }: Props) {
     )
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setError('Group name is required'); return }
     setError('')
-    startTransition(async () => {
-      try {
-        const { groupId } = await createStudyGroup({
-          name,
-          description,
-          examId: examId ? Number(examId) : undefined,
-          subjectIds: selectedSubjects,
-          privacy,
-          goal,
-        })
-        resultRef.current = groupId
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Something went wrong')
-      }
-    })
-  }
-
-  // Navigate after transition completes — avoids React error #441
-  useEffect(() => {
-    if (!isPending && resultRef.current !== null) {
-      router.push(`/study-groups/${resultRef.current}`)
-      resultRef.current = null
+    setIsPending(true)
+    try {
+      const { groupId } = await createStudyGroup({
+        name,
+        description,
+        examId: examId ? Number(examId) : undefined,
+        subjectIds: selectedSubjects,
+        privacy,
+        goal,
+      })
+      router.push(`/study-groups/${groupId}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setIsPending(false)
     }
-  }, [isPending, router])
+  }
 
   return (
     <div className="mx-auto max-w-xl px-5 py-8 lg:px-8">

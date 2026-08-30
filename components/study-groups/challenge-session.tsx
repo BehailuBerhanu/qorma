@@ -106,34 +106,30 @@ export default function ChallengeSession({
   const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null)
   const [answerState, setAnswerState] = useState<AnswerState | null>(null)
   const [isPending, startTransition] = useTransition()
-  const [isCompleting, startCompleting] = useTransition()
+  const [isCompleting, setIsCompleting] = useState(false)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const sessionStartRef = useRef<number>(0)
   const questionStartRef = useRef<number>(Date.now())
-  const navigateAfterCompleteRef = useRef<string | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const isLast = currentIndex === questions.length - 1
   const answeredCount = currentIndex + (answerState ? 1 : 0)
   const progress = Math.round((answeredCount / questions.length) * 100)
 
-  // Navigate after completing transition finishes — avoids React error #441
-  useEffect(() => {
-    if (!isCompleting && navigateAfterCompleteRef.current) {
-      const target = navigateAfterCompleteRef.current
-      navigateAfterCompleteRef.current = null
-      router.push(target)
+  async function finishAttempt(id: number) {
+    const elapsed = Date.now() - sessionStartRef.current
+    setIsCompleting(true)
+    try {
+      await completeChallengeAttempt(id, elapsed)
+      router.push(`/study-groups/${groupId}/challenge/${challenge.id}`)
+    } catch {
+      setIsCompleting(false)
     }
-  }, [isCompleting, router])
+  }
 
   function handleExpire() {
     if (!attemptId) return
-    const elapsed = Date.now() - sessionStartRef.current
-    const target = `/study-groups/${groupId}/challenge/${challenge.id}`
-    startCompleting(async () => {
-      await completeChallengeAttempt(attemptId, elapsed)
-      navigateAfterCompleteRef.current = target
-    })
+    finishAttempt(attemptId)
   }
 
   const { display: timerDisplay, isWarning } = useCountdown(
@@ -174,12 +170,7 @@ export default function ChallengeSession({
   function handleNext() {
     if (isLast) {
       if (!attemptId) return
-      const elapsed = Date.now() - sessionStartRef.current
-      const target = `/study-groups/${groupId}/challenge/${challenge.id}`
-      startCompleting(async () => {
-        await completeChallengeAttempt(attemptId, elapsed)
-        navigateAfterCompleteRef.current = target
-      })
+      finishAttempt(attemptId)
     } else {
       setCurrentIndex((i) => i + 1)
     }

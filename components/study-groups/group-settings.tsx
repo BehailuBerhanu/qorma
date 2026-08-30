@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle, Check, Copy, Globe, Lock, RefreshCw, Save, Trash2,
@@ -37,46 +37,27 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
   const router = useRouter()
   const isOwner = currentUserRole === 'owner'
 
-  // ── General settings form state ──
+  // ── General settings ──
   const [name, setName] = useState(group.name)
   const [description, setDescription] = useState(group.description ?? '')
   const [goal, setGoal] = useState(group.goal ?? '')
   const [privacy, setPrivacy] = useState<'public' | 'private'>(
     group.privacy as 'public' | 'private'
   )
-
   const [saveError, setSaveError] = useState('')
   const [saved, setSaved] = useState(false)
   const [isSaving, startSaving] = useTransition()
 
-  // ── Invite token state ──
+  // ── Invite token ──
   const [inviteToken, setInviteToken] = useState(group.inviteToken)
   const [copied, setCopied] = useState(false)
   const [isRegenerating, startRegenerating] = useTransition()
 
-  // ── Danger zone state ──
+  // ── Danger zone ──
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteInput, setDeleteInput] = useState('')
-  const [isDeleting, startDeleting] = useTransition()
-  const [isLeaving, startLeaving] = useTransition()
-
-  // Refs to capture nav targets after transitions
-  const deleteNavRef = useRef(false)
-  const leaveNavRef = useRef(false)
-
-  useEffect(() => {
-    if (!isDeleting && deleteNavRef.current) {
-      deleteNavRef.current = false
-      router.push('/study-groups')
-    }
-  }, [isDeleting, router])
-
-  useEffect(() => {
-    if (!isLeaving && leaveNavRef.current) {
-      leaveNavRef.current = false
-      router.push('/study-groups')
-    }
-  }, [isLeaving, router])
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isLeaving, setIsLeaving] = useState(false)
 
   const inviteUrl =
     inviteToken && typeof window !== 'undefined'
@@ -89,6 +70,7 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
     e.preventDefault()
     if (!name.trim()) { setSaveError('Name is required'); return }
     setSaveError('')
+    // useTransition is fine here — no router.push involved
     startSaving(async () => {
       try {
         await updateStudyGroup(group.id, {
@@ -120,20 +102,26 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
     })
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (deleteInput !== group.name) return
-    startDeleting(async () => {
+    setIsDeleting(true)
+    try {
       await deleteStudyGroup(group.id)
-      deleteNavRef.current = true
-    })
+      router.push('/study-groups')
+    } catch {
+      setIsDeleting(false)
+    }
   }
 
-  function handleLeave() {
+  async function handleLeave() {
     if (!confirm('Leave this group? You will lose admin access.')) return
-    startLeaving(async () => {
+    setIsLeaving(true)
+    try {
       await leaveStudyGroup(group.id)
-      leaveNavRef.current = true
-    })
+      router.push('/study-groups')
+    } catch {
+      setIsLeaving(false)
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -162,7 +150,7 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 resize-none"
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
             />
           </div>
 
@@ -173,7 +161,7 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
               onChange={(e) => setGoal(e.target.value)}
               rows={2}
               placeholder="e.g. Pass EUEE with 90%+ in Physics"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 resize-none"
+              className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
             />
           </div>
 
@@ -194,9 +182,16 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
                       : 'border-slate-200 hover:border-emerald-200'
                   }`}
                 >
-                  <opt.icon size={15} className={privacy === opt.value ? 'text-emerald-600' : 'text-slate-400'} />
+                  <opt.icon
+                    size={15}
+                    className={privacy === opt.value ? 'text-emerald-600' : 'text-slate-400'}
+                  />
                   <div>
-                    <div className={`text-xs font-semibold ${privacy === opt.value ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    <div
+                      className={`text-xs font-semibold ${
+                        privacy === opt.value ? 'text-emerald-700' : 'text-slate-700'
+                      }`}
+                    >
                       {opt.label}
                     </div>
                     <div className="text-[10px] text-slate-500">{opt.desc}</div>
@@ -260,7 +255,6 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
         <p className="mb-4 text-xs text-red-500">These actions are irreversible.</p>
 
         <div className="space-y-3">
-          {/* Leave group — for admins who are not the owner */}
           {!isOwner && (
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -277,7 +271,6 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
             </div>
           )}
 
-          {/* Delete group — owner only */}
           {isOwner && (
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
@@ -299,7 +292,9 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
                 <div className="rounded-xl bg-red-50 p-4">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-red-700">
                     <AlertTriangle size={14} />
-                    Type <span className="rounded bg-red-100 px-1 font-mono">{group.name}</span> to confirm
+                    Type{' '}
+                    <span className="rounded bg-red-100 px-1 font-mono">{group.name}</span>{' '}
+                    to confirm
                   </div>
                   <input
                     value={deleteInput}
