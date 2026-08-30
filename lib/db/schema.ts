@@ -262,4 +262,181 @@ export const bookmarkRelations = relations(bookmark, ({ one }) => ({
 export const userRelations = relations(user, ({ many }) => ({
   practiceSessions: many(practiceSession),
   bookmarks: many(bookmark),
+  groupMemberships: many(groupMembership),
+  groupPosts: many(groupPost),
+}))
+
+// ---------------------------------------------------------------------------
+// Study Group
+// ---------------------------------------------------------------------------
+
+export const studyGroup = pgTable('study_group', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 150 }).notNull(),
+  description: text('description'),
+  examId: integer('exam_id').references(() => exam.id, { onDelete: 'set null' }),
+  ownerId: text('owner_id').notNull().references(() => user.id),
+  privacy: varchar('privacy', { length: 10 }).notNull().default('public'),
+  goal: text('goal'),
+  inviteToken: varchar('invite_token', { length: 64 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (t) => [
+  unique('study_group_invite_token_unique').on(t.inviteToken),
+])
+
+export const studyGroupSubject = pgTable('study_group_subject', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull().references(() => studyGroup.id, { onDelete: 'cascade' }),
+  subjectId: integer('subject_id').notNull().references(() => subject.id, { onDelete: 'cascade' }),
+}, (t) => [
+  unique('study_group_subject_group_subject_unique').on(t.groupId, t.subjectId),
+])
+
+export const groupMembership = pgTable('group_membership', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull().references(() => studyGroup.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  // 'owner' | 'admin' | 'member'
+  role: varchar('role', { length: 10 }).notNull().default('member'),
+  joinedAt: timestamp('joined_at').notNull().defaultNow(),
+}, (t) => [
+  unique('group_membership_group_user_unique').on(t.groupId, t.userId),
+])
+
+export const groupPost = pgTable('group_post', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull().references(() => studyGroup.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  questionId: integer('question_id').references(() => question.id, { onDelete: 'set null' }),
+  isPinned: boolean('is_pinned').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const groupComment = pgTable('group_comment', {
+  id: serial('id').primaryKey(),
+  postId: integer('post_id').notNull().references(() => groupPost.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
+
+export const groupChallenge = pgTable('group_challenge', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull().references(() => studyGroup.id, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description'),
+  subjectId: integer('subject_id').references(() => subject.id, { onDelete: 'set null' }),
+  examId: integer('exam_id').references(() => exam.id, { onDelete: 'set null' }),
+  questionCount: integer('question_count').notNull().default(10),
+  timeLimitMins: integer('time_limit_mins').notNull().default(15),
+  createdBy: text('created_by').notNull().references(() => user.id),
+  startAt: timestamp('start_at').notNull(),
+  endAt: timestamp('end_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+export const challengeQuestion = pgTable('challenge_question', {
+  id: serial('id').primaryKey(),
+  challengeId: integer('challenge_id').notNull().references(() => groupChallenge.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => question.id, { onDelete: 'cascade' }),
+  orderIndex: integer('order_index').notNull().default(1),
+}, (t) => [
+  unique('challenge_question_challenge_question_unique').on(t.challengeId, t.questionId),
+])
+
+export const challengeAttempt = pgTable('challenge_attempt', {
+  id: serial('id').primaryKey(),
+  challengeId: integer('challenge_id').notNull().references(() => groupChallenge.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  score: integer('score').notNull().default(0),
+  total: integer('total').notNull().default(0),
+  accuracy: integer('accuracy').notNull().default(0),
+  timeTakenMs: integer('time_taken_ms'),
+  completedAt: timestamp('completed_at'),
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+}, (t) => [
+  unique('challenge_attempt_challenge_user_unique').on(t.challengeId, t.userId),
+])
+
+export const challengeAnswer = pgTable('challenge_answer', {
+  id: serial('id').primaryKey(),
+  attemptId: integer('attempt_id').notNull().references(() => challengeAttempt.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => question.id, { onDelete: 'cascade' }),
+  selectedOptionId: integer('selected_option_id').references(() => option.id, { onDelete: 'set null' }),
+  isCorrect: boolean('is_correct').notNull().default(false),
+  answeredAt: timestamp('answered_at').notNull().defaultNow(),
+})
+
+export const contentReport = pgTable('content_report', {
+  id: serial('id').primaryKey(),
+  reporterId: text('reporter_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  postId: integer('post_id').references(() => groupPost.id, { onDelete: 'set null' }),
+  commentId: integer('comment_id').references(() => groupComment.id, { onDelete: 'set null' }),
+  reason: varchar('reason', { length: 50 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+// ---------------------------------------------------------------------------
+// Study Group Relations
+// ---------------------------------------------------------------------------
+
+export const studyGroupRelations = relations(studyGroup, ({ one, many }) => ({
+  owner: one(user, { fields: [studyGroup.ownerId], references: [user.id] }),
+  exam: one(exam, { fields: [studyGroup.examId], references: [exam.id] }),
+  subjects: many(studyGroupSubject),
+  memberships: many(groupMembership),
+  posts: many(groupPost),
+  challenges: many(groupChallenge),
+}))
+
+export const studyGroupSubjectRelations = relations(studyGroupSubject, ({ one }) => ({
+  group: one(studyGroup, { fields: [studyGroupSubject.groupId], references: [studyGroup.id] }),
+  subject: one(subject, { fields: [studyGroupSubject.subjectId], references: [subject.id] }),
+}))
+
+export const groupMembershipRelations = relations(groupMembership, ({ one }) => ({
+  group: one(studyGroup, { fields: [groupMembership.groupId], references: [studyGroup.id] }),
+  user: one(user, { fields: [groupMembership.userId], references: [user.id] }),
+}))
+
+export const groupPostRelations = relations(groupPost, ({ one, many }) => ({
+  group: one(studyGroup, { fields: [groupPost.groupId], references: [studyGroup.id] }),
+  user: one(user, { fields: [groupPost.userId], references: [user.id] }),
+  question: one(question, { fields: [groupPost.questionId], references: [question.id] }),
+  comments: many(groupComment),
+}))
+
+export const groupCommentRelations = relations(groupComment, ({ one }) => ({
+  post: one(groupPost, { fields: [groupComment.postId], references: [groupPost.id] }),
+  user: one(user, { fields: [groupComment.userId], references: [user.id] }),
+}))
+
+export const groupChallengeRelations = relations(groupChallenge, ({ one, many }) => ({
+  group: one(studyGroup, { fields: [groupChallenge.groupId], references: [studyGroup.id] }),
+  subject: one(subject, { fields: [groupChallenge.subjectId], references: [subject.id] }),
+  exam: one(exam, { fields: [groupChallenge.examId], references: [exam.id] }),
+  createdByUser: one(user, { fields: [groupChallenge.createdBy], references: [user.id] }),
+  questions: many(challengeQuestion),
+  attempts: many(challengeAttempt),
+}))
+
+export const challengeQuestionRelations = relations(challengeQuestion, ({ one }) => ({
+  challenge: one(groupChallenge, { fields: [challengeQuestion.challengeId], references: [groupChallenge.id] }),
+  question: one(question, { fields: [challengeQuestion.questionId], references: [question.id] }),
+}))
+
+export const challengeAttemptRelations = relations(challengeAttempt, ({ one, many }) => ({
+  challenge: one(groupChallenge, { fields: [challengeAttempt.challengeId], references: [groupChallenge.id] }),
+  user: one(user, { fields: [challengeAttempt.userId], references: [user.id] }),
+  answers: many(challengeAnswer),
+}))
+
+export const challengeAnswerRelations = relations(challengeAnswer, ({ one }) => ({
+  attempt: one(challengeAttempt, { fields: [challengeAnswer.attemptId], references: [challengeAttempt.id] }),
+  question: one(question, { fields: [challengeAnswer.questionId], references: [question.id] }),
+  selectedOption: one(option, { fields: [challengeAnswer.selectedOptionId], references: [option.id] }),
 }))
