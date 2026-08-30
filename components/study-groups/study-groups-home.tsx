@@ -1,16 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  BookOpen,
-  ChevronRight,
-  Globe,
-  Lock,
-  Plus,
-  Search,
-  Users,
+  BookOpen, ChevronRight, Globe, Lock, Plus, Search, Users,
 } from 'lucide-react'
 import { joinStudyGroup } from '@/lib/actions/study-groups'
 
@@ -34,13 +28,16 @@ interface Props {
 
 function GroupCard({ group, showRole }: { group: Group; showRole?: boolean }) {
   const router = useRouter()
-  const [joining, startJoin] = useTransition()
+  const [joining, setJoining] = useState(false)
 
-  function handleJoin() {
-    startJoin(async () => {
+  async function handleJoin() {
+    setJoining(true)
+    try {
       await joinStudyGroup(group.id)
       router.refresh()
-    })
+    } finally {
+      setJoining(false)
+    }
   }
 
   return (
@@ -59,7 +56,7 @@ function GroupCard({ group, showRole }: { group: Group; showRole?: boolean }) {
               </span>
             )}
           </div>
-          <h3 className="mt-1 font-semibold leading-snug text-slate-900 line-clamp-2">
+          <h3 className="mt-1 line-clamp-2 font-semibold leading-snug text-slate-900">
             {group.name}
           </h3>
         </div>
@@ -72,10 +69,7 @@ function GroupCard({ group, showRole }: { group: Group; showRole?: boolean }) {
       {group.subjects.length > 0 && (
         <div className="mb-3 flex flex-wrap gap-1">
           {group.subjects.map((s) => (
-            <span
-              key={s}
-              className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600"
-            >
+            <span key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
               {s}
             </span>
           ))}
@@ -127,7 +121,6 @@ export default function StudyGroupsHome({ user, myGroups, discoverGroups }: Prop
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 lg:px-8">
-      {/* Header */}
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="section-title text-[26px]">Study Groups</h1>
@@ -144,7 +137,6 @@ export default function StudyGroupsHome({ user, myGroups, discoverGroups }: Prop
         </Link>
       </div>
 
-      {/* Search */}
       <div className="relative mb-8 w-full max-w-sm">
         <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
         <input
@@ -155,7 +147,6 @@ export default function StudyGroupsHome({ user, myGroups, discoverGroups }: Prop
         />
       </div>
 
-      {/* My Groups */}
       <section className="mb-10">
         <h2 className="section-title mb-4">My Groups</h2>
         {myGroups.length === 0 ? (
@@ -181,7 +172,6 @@ export default function StudyGroupsHome({ user, myGroups, discoverGroups }: Prop
         )}
       </section>
 
-      {/* Discover */}
       <section>
         <h2 className="section-title mb-4">Discover Groups</h2>
         {discoverGroups.length === 0 ? (

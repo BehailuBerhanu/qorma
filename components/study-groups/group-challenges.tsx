@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Clock, FlameIcon, Plus, Users } from 'lucide-react'
+import { BookOpen, Clock, FlameIcon, Plus } from 'lucide-react'
 import { createChallenge } from '@/lib/actions/study-groups'
 
 interface Challenge {
@@ -55,7 +55,7 @@ function CreateChallengeForm({
   onDone: () => void
 }) {
   const router = useRouter()
-  const [pending, start] = useTransition()
+  const [pending, setPending] = useState(false)
   const [title, setTitle] = useState('')
   const [questionCount, setQuestionCount] = useState(10)
   const [timeLimitMins, setTimeLimitMins] = useState(15)
@@ -63,30 +63,30 @@ function CreateChallengeForm({
   const [endAt, setEndAt] = useState('')
   const [error, setError] = useState('')
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim() || !startAt || !endAt) { setError('All fields required'); return }
     setError('')
-    start(async () => {
-      try {
-        await createChallenge(groupId, {
-          title,
-          questionCount,
-          timeLimitMins,
-          examId: groupExamId ?? undefined,
-          startAt: new Date(startAt),
-          endAt: new Date(endAt),
-        })
-        onDone()
-        router.refresh()
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to create challenge')
-      }
-    })
+    setPending(true)
+    try {
+      await createChallenge(groupId, {
+        title,
+        questionCount,
+        timeLimitMins,
+        examId: groupExamId ?? undefined,
+        startAt: new Date(startAt),
+        endAt: new Date(endAt),
+      })
+      onDone()
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create challenge')
+      setPending(false)
+    }
   }
 
   return (
-    <form onSubmit={submit} className="dashboard-card mb-5 p-5 space-y-4">
+    <form onSubmit={submit} className="dashboard-card mb-5 space-y-4 p-5">
       <h3 className="font-semibold text-slate-800">New Challenge</h3>
       <div>
         <label className="mb-1 block text-xs font-medium text-slate-600">Title</label>
@@ -101,9 +101,7 @@ function CreateChallengeForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Questions</label>
           <input
-            type="number"
-            min={3}
-            max={50}
+            type="number" min={3} max={50}
             value={questionCount}
             onChange={(e) => setQuestionCount(Number(e.target.value))}
             className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
@@ -112,9 +110,7 @@ function CreateChallengeForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Time (minutes)</label>
           <input
-            type="number"
-            min={5}
-            max={120}
+            type="number" min={5} max={120}
             value={timeLimitMins}
             onChange={(e) => setTimeLimitMins(Number(e.target.value))}
             className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
@@ -125,8 +121,7 @@ function CreateChallengeForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Starts at</label>
           <input
-            type="datetime-local"
-            value={startAt}
+            type="datetime-local" value={startAt}
             onChange={(e) => setStartAt(e.target.value)}
             className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
           />
@@ -134,8 +129,7 @@ function CreateChallengeForm({
         <div>
           <label className="mb-1 block text-xs font-medium text-slate-600">Ends at</label>
           <input
-            type="datetime-local"
-            value={endAt}
+            type="datetime-local" value={endAt}
             onChange={(e) => setEndAt(e.target.value)}
             className="h-9 w-full rounded-xl border border-slate-200 px-3 text-sm outline-none focus:border-emerald-500"
           />
@@ -144,8 +138,7 @@ function CreateChallengeForm({
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button
-          type="submit"
-          disabled={pending}
+          type="submit" disabled={pending}
           className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {pending ? 'Creating…' : 'Create Challenge'}
@@ -214,14 +207,8 @@ export default function GroupChallenges({
                       <div className="mt-0.5 text-xs text-emerald-700">{c.subjectName}</div>
                     )}
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <BookOpen size={11} />
-                        {c.questionCount} questions
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        {c.timeLimitMins} min
-                      </span>
+                      <span className="flex items-center gap-1"><BookOpen size={11} />{c.questionCount} questions</span>
+                      <span className="flex items-center gap-1"><Clock size={11} />{c.timeLimitMins} min</span>
                       <span>{formatDate(c.startAt)} → {formatDate(c.endAt)}</span>
                     </div>
                   </div>

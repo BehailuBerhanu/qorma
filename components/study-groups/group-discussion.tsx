@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   BookOpen, ChevronDown, ChevronUp, MessageSquare,
@@ -89,34 +89,48 @@ function PostCard({
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
-  const [submitting, startSubmit] = useTransition()
-  const [deleting, startDelete] = useTransition()
+  const [submitting, setSubmitting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const canModerate = isAdminOrOwner || post.userId === currentUserId
 
-  function submitComment() {
+  async function submitComment() {
     if (!commentText.trim()) return
-    startSubmit(async () => {
+    setSubmitting(true)
+    try {
       await createComment(groupId, post.id, commentText)
       setCommentText('')
       router.refresh()
-    })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  function handleDeletePost() {
-    startDelete(async () => {
+  async function handleDeletePost() {
+    setMenuOpen(false)
+    setDeleting(true)
+    try {
       await deletePost(groupId, post.id)
       router.refresh()
-    })
-    setMenuOpen(false)
+    } finally {
+      setDeleting(false)
+    }
   }
 
-  function handlePin(pinned: boolean) {
-    startDelete(async () => {
+  async function handlePin(pinned: boolean) {
+    setMenuOpen(false)
+    setDeleting(true)
+    try {
       await pinPost(groupId, post.id, pinned)
       router.refresh()
-    })
-    setMenuOpen(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  async function handleDeleteComment(commentId: number) {
+    await deleteComment(groupId, commentId)
+    router.refresh()
   }
 
   function handleReport() {
@@ -154,7 +168,8 @@ function PostCard({
                     {isAdminOrOwner && (
                       <button
                         onClick={() => handlePin(!post.isPinned)}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        disabled={deleting}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                       >
                         <Pin size={13} />
                         {post.isPinned ? 'Unpin' : 'Pin post'}
@@ -163,7 +178,8 @@ function PostCard({
                     {canModerate && (
                       <button
                         onClick={handleDeletePost}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        disabled={deleting}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
                         <Trash2 size={13} />
                         Delete
@@ -187,7 +203,6 @@ function PostCard({
           </div>
         </div>
 
-        {/* Comment toggle */}
         <button
           onClick={() => setShowComments((v) => !v)}
           className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700"
@@ -202,7 +217,6 @@ function PostCard({
         </button>
       </div>
 
-      {/* Comments */}
       {showComments && (
         <div className="border-t border-slate-100 bg-slate-50/50 px-4 py-3">
           {post.comments.map((c) => (
@@ -214,9 +228,7 @@ function PostCard({
                   <span className="text-[10px] text-slate-400">{timeAgo(c.createdAt)}</span>
                   {(c.userId === currentUserId || isAdminOrOwner) && (
                     <button
-                      onClick={() => {
-                        deleteComment(groupId, c.id).then(() => router.refresh())
-                      }}
+                      onClick={() => handleDeleteComment(c.id)}
                       className="ml-auto text-slate-300 hover:text-red-500"
                     >
                       <Trash2 size={11} />
@@ -227,7 +239,6 @@ function PostCard({
               </div>
             </div>
           ))}
-          {/* Comment input */}
           <div className="flex gap-2">
             <input
               value={commentText}
@@ -257,17 +268,20 @@ export default function GroupDiscussion({
   const [postContent, setPostContent] = useState('')
   const [attachedQ, setAttachedQ] = useState<AttachedQ | null>(null)
   const [showAttach, setShowAttach] = useState(false)
-  const [submitting, startSubmit] = useTransition()
+  const [submitting, setSubmitting] = useState(false)
 
-  function handlePost() {
+  async function handlePost() {
     if (!postContent.trim()) return
-    startSubmit(async () => {
+    setSubmitting(true)
+    try {
       await createPost(groupId, postContent, attachedQ?.questionId)
       setPostContent('')
       setAttachedQ(null)
       setShowAttach(false)
       router.refresh()
-    })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const pinnedPosts = posts.filter((p) => p.isPinned)
@@ -275,7 +289,6 @@ export default function GroupDiscussion({
 
   return (
     <div>
-      {/* Post composer */}
       {isMember && (
         <div className="dashboard-card mb-5 p-4">
           <textarea
@@ -315,17 +328,13 @@ export default function GroupDiscussion({
           </div>
           {showAttach && (
             <QuestionAttacher
-              onSelect={(q) => {
-                setAttachedQ(q)
-                setShowAttach(false)
-              }}
+              onSelect={(q) => { setAttachedQ(q); setShowAttach(false) }}
               onClose={() => setShowAttach(false)}
             />
           )}
         </div>
       )}
 
-      {/* Posts */}
       {posts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 py-14 text-center">
           <MessageSquare size={28} className="mx-auto mb-3 text-slate-300" />
@@ -339,22 +348,10 @@ export default function GroupDiscussion({
       ) : (
         <div className="space-y-3">
           {pinnedPosts.map((p) => (
-            <PostCard
-              key={p.id}
-              post={p}
-              currentUserId={currentUserId}
-              groupId={groupId}
-              isAdminOrOwner={isAdminOrOwner}
-            />
+            <PostCard key={p.id} post={p} currentUserId={currentUserId} groupId={groupId} isAdminOrOwner={isAdminOrOwner} />
           ))}
           {regularPosts.map((p) => (
-            <PostCard
-              key={p.id}
-              post={p}
-              currentUserId={currentUserId}
-              groupId={groupId}
-              isAdminOrOwner={isAdminOrOwner}
-            />
+            <PostCard key={p.id} post={p} currentUserId={currentUserId} groupId={groupId} isAdminOrOwner={isAdminOrOwner} />
           ))}
         </div>
       )}

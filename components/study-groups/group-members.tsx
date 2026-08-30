@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Shield, UserMinus, UserCheck } from 'lucide-react'
 import { changeMemberRole, removeMember } from '@/lib/actions/study-groups'
@@ -30,24 +30,30 @@ const ROLE_BADGE: Record<string, string> = {
 
 export default function GroupMembers({ groupId, currentUserId, members, currentUserRole }: Props) {
   const router = useRouter()
-  const [pending, start] = useTransition()
+  const [pending, setPending] = useState(false)
 
   const isOwner = currentUserRole === 'owner'
   const isAdminOrOwner = isOwner || currentUserRole === 'admin'
 
-  function promote(userId: string, role: 'admin' | 'member') {
-    start(async () => {
+  async function promote(userId: string, role: 'admin' | 'member') {
+    setPending(true)
+    try {
       await changeMemberRole(groupId, userId, role)
       router.refresh()
-    })
+    } finally {
+      setPending(false)
+    }
   }
 
-  function remove(userId: string) {
+  async function remove(userId: string) {
     if (!confirm('Remove this member from the group?')) return
-    start(async () => {
+    setPending(true)
+    try {
       await removeMember(groupId, userId)
       router.refresh()
-    })
+    } finally {
+      setPending(false)
+    }
   }
 
   return (
@@ -64,12 +70,10 @@ export default function GroupMembers({ groupId, currentUserId, members, currentU
         <div className="space-y-2">
           {members.map((m) => (
             <div key={m.userId} className="dashboard-card flex items-center gap-3 px-4 py-3">
-              {/* Avatar */}
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white">
                 {m.name.slice(0, 2).toUpperCase()}
               </div>
 
-              {/* Info */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-800">
@@ -91,7 +95,6 @@ export default function GroupMembers({ groupId, currentUserId, members, currentU
                 </div>
               </div>
 
-              {/* Actions (only for admins/owners, not self, not owner target) */}
               {isAdminOrOwner && m.userId !== currentUserId && m.role !== 'owner' && (
                 <div className="flex items-center gap-1">
                   {isOwner && (
