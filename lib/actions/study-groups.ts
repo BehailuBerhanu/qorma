@@ -632,3 +632,15 @@ export async function reportContent(data: {
     reason: data.reason,
   })
 }
+
+// ─── Question search (client-safe server action) ──────────────────────────────
+
+export async function searchQuestionsAction(
+  query: string,
+  examId?: number,
+  subjectId?: number,
+  limit = 8
+) {
+  const { searchQuestions } = await import('@/lib/db/queries/study-groups')
+  return searchQuestions(query, examId, subjectId, limit)
+}

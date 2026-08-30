@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Search, X } from 'lucide-react'
-import { searchQuestions } from '@/lib/db/queries/study-groups'
+import { searchQuestionsAction } from '@/lib/actions/study-groups'
 
 interface QuestionResult {
   id: number
@@ -27,7 +27,7 @@ export default function QuestionAttacher({ onSelect, onClose }: Props) {
     setQuery(q)
     if (q.length < 2) { setResults([]); return }
     startSearch(async () => {
-      const rows = await searchQuestions(q, undefined, undefined, 8)
+      const rows = await searchQuestionsAction(q, undefined, undefined, 8)
       setResults(rows)
     })
   }
