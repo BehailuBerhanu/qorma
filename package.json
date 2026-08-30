@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "drizzle-kit migrate && next build",
+    "build": "drizzle-kit push && next build",
     "start": "next start",
     "db:generate": "dotenvx run -f .env.local -- drizzle-kit generate",
     "db:migrate": "dotenvx run -f .env.local -- drizzle-kit migrate",
