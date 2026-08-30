@@ -97,7 +97,7 @@ const navItems = [
   { label: 'Bookmarks', icon: Bookmark, href: '/bookmarks' },
   { label: 'Performance', icon: LineChart, href: '/performance' },
   { label: 'Challenges', icon: Trophy, href: '#' },
-  { label: 'Study Groups', icon: Users, href: '#' },
+  { label: 'Study Groups', icon: Users, href: '/study-groups' },
   { label: 'Downloads', icon: Download, href: '#' },
   { label: 'Settings', icon: Settings, href: '#' },
 ]
