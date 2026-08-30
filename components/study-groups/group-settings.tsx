@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle, Check, Copy, Globe, Lock, RefreshCw, Save, Trash2,
@@ -60,6 +60,24 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
   const [isDeleting, startDeleting] = useTransition()
   const [isLeaving, startLeaving] = useTransition()
 
+  // Refs to capture nav targets after transitions
+  const deleteNavRef = useRef(false)
+  const leaveNavRef = useRef(false)
+
+  useEffect(() => {
+    if (!isDeleting && deleteNavRef.current) {
+      deleteNavRef.current = false
+      router.push('/study-groups')
+    }
+  }, [isDeleting, router])
+
+  useEffect(() => {
+    if (!isLeaving && leaveNavRef.current) {
+      leaveNavRef.current = false
+      router.push('/study-groups')
+    }
+  }, [isLeaving, router])
+
   const inviteUrl =
     inviteToken && typeof window !== 'undefined'
       ? `${window.location.origin}/study-groups/join/${inviteToken}`
@@ -81,7 +99,6 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
         })
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
-        router.refresh()
       } catch (err) {
         setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
       }
@@ -107,7 +124,7 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
     if (deleteInput !== group.name) return
     startDeleting(async () => {
       await deleteStudyGroup(group.id)
-      router.push('/study-groups')
+      deleteNavRef.current = true
     })
   }
 
@@ -115,7 +132,7 @@ export default function GroupSettings({ group, currentUserRole }: Props) {
     if (!confirm('Leave this group? You will lose admin access.')) return
     startLeaving(async () => {
       await leaveStudyGroup(group.id)
-      router.push('/study-groups')
+      leaveNavRef.current = true
     })
   }
 

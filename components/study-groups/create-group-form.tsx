@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Check } from 'lucide-react'
@@ -15,6 +15,7 @@ export default function CreateGroupForm({ subjects, exams }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+  const resultRef = useRef<number | null>(null)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -43,12 +44,20 @@ export default function CreateGroupForm({ subjects, exams }: Props) {
           privacy,
           goal,
         })
-        router.push(`/study-groups/${groupId}`)
+        resultRef.current = groupId
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Something went wrong')
       }
     })
   }
+
+  // Navigate after transition completes — avoids React error #441
+  useEffect(() => {
+    if (!isPending && resultRef.current !== null) {
+      router.push(`/study-groups/${resultRef.current}`)
+      resultRef.current = null
+    }
+  }, [isPending, router])
 
   return (
     <div className="mx-auto max-w-xl px-5 py-8 lg:px-8">

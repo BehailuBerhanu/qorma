@@ -110,19 +110,29 @@ export default function ChallengeSession({
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const sessionStartRef = useRef<number>(0)
   const questionStartRef = useRef<number>(Date.now())
+  const navigateAfterCompleteRef = useRef<string | null>(null)
 
   const currentQuestion = questions[currentIndex]
   const isLast = currentIndex === questions.length - 1
   const answeredCount = currentIndex + (answerState ? 1 : 0)
   const progress = Math.round((answeredCount / questions.length) * 100)
 
+  // Navigate after completing transition finishes — avoids React error #441
+  useEffect(() => {
+    if (!isCompleting && navigateAfterCompleteRef.current) {
+      const target = navigateAfterCompleteRef.current
+      navigateAfterCompleteRef.current = null
+      router.push(target)
+    }
+  }, [isCompleting, router])
+
   function handleExpire() {
     if (!attemptId) return
     const elapsed = Date.now() - sessionStartRef.current
+    const target = `/study-groups/${groupId}/challenge/${challenge.id}`
     startCompleting(async () => {
       await completeChallengeAttempt(attemptId, elapsed)
-      router.push(`/study-groups/${groupId}/challenge/${challenge.id}`)
-      router.refresh()
+      navigateAfterCompleteRef.current = target
     })
   }
 
@@ -165,10 +175,10 @@ export default function ChallengeSession({
     if (isLast) {
       if (!attemptId) return
       const elapsed = Date.now() - sessionStartRef.current
+      const target = `/study-groups/${groupId}/challenge/${challenge.id}`
       startCompleting(async () => {
         await completeChallengeAttempt(attemptId, elapsed)
-        router.push(`/study-groups/${groupId}/challenge/${challenge.id}`)
-        router.refresh()
+        navigateAfterCompleteRef.current = target
       })
     } else {
       setCurrentIndex((i) => i + 1)
